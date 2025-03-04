@@ -1,0 +1,13 @@
+__pycache__
+TODO.md
+*.csv
+*.pkl
+*.db
+*.env
+*.txt
+.DS_Store
+.coverage
+htmlcov
+.pytest_cache
+poetry.lock
+fly.toml

@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "inversebias-backend"
+version = "0.1.0"
+description = ""
+authors = ["skew <nunoskew@gmail.com>"]
+readme = "README.md"
+packages = [{include = "inversebias"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.32.3"
+fastapi = {extras = ["standard"], version = "^0.115.0"}
+pydantic = "^2.9.2"
+uvicorn = "^0.30.6"
+scikit-learn = "^1.5.2"
+pandas = "^2.2.3"
+ipython = "^8.27.0"
+ollama = "^0.3.3"
+python-dotenv = "^1.0.1"
+pytest = "^8.3.3"
+sqlalchemy = "^2.0.35"
+pandera = "^0.20.4"
+pydantic-settings = "^2.8.0"
+lxml = "^5.3.1"
+beautifulsoup4 = "^4.13.3"
+html5lib = "^1.1"
+pytest-cov = "^6.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,31 @@
+# Ignore environment files
+.env
+.env.*
+
+# Ignore CSV files
+*.csv
+
+# Python cache files
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.venv/
+
+# Git related
+.git
+.gitignore
+
+# Editor directories and files
+.vscode/
+.idea/
+
+# Other
+*.log
+
+*.txt
+*.db
+!inverse_bias.db
