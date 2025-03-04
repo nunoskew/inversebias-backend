@@ -18,9 +18,9 @@ news_sources:
     url: https://www.washingtonpost.com
     sitemap_url: https://www.washingtonpost.com/sitemaps/news-sitemap.xml.gz
 
-  # apnews:
-  #   url: https://www.apnews.com
-  #   sitemap_url: https://www.apnews.com/news-sitemap-content.xml
+  apnews:
+    url: https://www.apnews.com
+    sitemap_url: https://www.apnews.com/news-sitemap-content.xml
 
 # Subjects to track - each will be automatically used in the application
 subjects:

@@ -121,10 +121,12 @@ def sitemap_scrape(
 
 
 def _sitemap_scrape(url: str) -> SitemapTmpScrape:
-
     sitemap: Dict[str, Any] = standard_scrape(url, include_tags=["url"])
     sitemap_soup: BeautifulSoup = BeautifulSoup(sitemap["html"], features="lxml")
-    return pd.concat([_parse_url_xml(url) for url in sitemap_soup.find_all("url")])
+    scrape: pd.DataFrame = pd.concat(
+        [_parse_url_xml(url) for url in sitemap_soup.find_all("url")]
+    ).dropna()
+    return scrape
 
 
 def _parse_url_xml(url_xml: Tag) -> SitemapTmpScrape:
@@ -140,11 +142,14 @@ def _parse_url_xml(url_xml: Tag) -> SitemapTmpScrape:
         Returns:
             List[str]: A list of extracted metadata values.
         """
-        regex = "news:(language|publication_date|title)"
-        contents = [d.contents[0] for d in url_xml.find_all(re.compile(regex))]
+        fields = ["title", "language", "publication_date"]
         df = pd.DataFrame(
-            [contents],
-            columns=(["language", "publication_date", "title"]),
+            [
+                {
+                    field: getattr(url_xml.find(f"news:{field}"), "contents", [None])[0]
+                    for field in fields
+                }
+            ]
         )
         return df
 
