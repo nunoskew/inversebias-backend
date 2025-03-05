@@ -102,26 +102,18 @@ CHATGPT_API = ChatGPTAPI()
 LLAMA_API = LLamaAPI()
 
 
-def process_sentiment(data: DataFrame[BiasInput], upload=False) -> DataFrame[BiasInput]:
+def process_sentiment(data: DataFrame[BiasInput]) -> DataFrame[BiasInput]:
     data = data.dropna(subset=["url"])
     data = data.drop_duplicates(subset=["url"], keep=False)
     data["sentiment"] = data["sentiment"].str.lower()
     data = data.loc[data.sentiment.isin(settings.analysis.sentiment_categories)]
     split_title = data.title.str.split("|")
-
     data["title"] = split_title.apply(
         lambda x: x[np.argmax(np.array(list(map(len, x))))]
     ).values
-    data.loc[data.source == "nytimes", "title"] = (
-        data.loc[data.source == "nytimes", "title"]
-        .str.split(" - The New York Times")
-        .str[0]
-    )
     data["title"] = data["title"].str.strip()
-    data = data.loc[data.language == "en"]
+    data = data.loc[data.language.str[:2] == "en"]
     data = data.reset_index(drop=True)
-    if upload:
-        table_upload(df=data, primary_key="url", table_name="processed_news_articles")
     return data
 
 
