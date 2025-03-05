@@ -20,7 +20,7 @@ class NewsArticle(BaseModel):
     source: str
     subject: str
     url: str
-    description: str
+    title: str
     sentiment: str
     publication_date: str
     explanation: str
@@ -39,7 +39,7 @@ def get_articles(
 ):
 
     query = (
-        "SELECT source, subject, url, description, "
+        "SELECT source, subject, url, title, "
         "publication_date, sentiment, explanation,bias,negative "
         "as num_negative,positive as num_positive FROM inverse_bias WHERE 1=1"
     )

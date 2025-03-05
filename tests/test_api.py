@@ -18,7 +18,7 @@ def mock_db_connection():
             "source": "CNN",
             "subject": "politics",
             "url": "https://cnn.com/article1",
-            "description": "Article about politics",
+            "title": "Article about politics",
             "publication_date": "2023-01-01",
             "sentiment": "positive",
             "explanation": "Positive explanation",
@@ -30,7 +30,7 @@ def mock_db_connection():
             "source": "Fox News",
             "subject": "economy",
             "url": "https://foxnews.com/article2",
-            "description": "Article about economy",
+            "title": "Article about economy",
             "publication_date": "2023-01-02",
             "sentiment": "negative",
             "explanation": "Negative explanation",
@@ -76,7 +76,7 @@ def test_get_articles(test_client, mock_db_connection):
     assert data[0]["source"] == "CNN"
     assert data[0]["subject"] == "politics"
     assert data[0]["url"] == "https://cnn.com/article1"
-    assert data[0]["description"] == "Article about politics"
+    assert data[0]["title"] == "Article about politics"
     assert data[0]["sentiment"] == "positive"
     assert data[0]["num_negative"] == 2
     assert data[0]["num_positive"] == 8
