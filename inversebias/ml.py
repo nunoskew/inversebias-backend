@@ -274,7 +274,7 @@ def infer_sentiment(
         table_name="unprocessed_sentiment",
         verbose=True,
     )
-    processed_sentiment = process_sentiment(df, upload=False)
+    processed_sentiment = process_sentiment(df)
     return processed_sentiment
 
 
