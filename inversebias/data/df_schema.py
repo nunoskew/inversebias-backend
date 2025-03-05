@@ -8,7 +8,6 @@ class ScrapeInput(pa.DataFrameModel):
     url: Series[str] = pa.Field(coerce=False)
 
 
-
 class SitemapTmpScrape(pa.DataFrameModel):
     url: Series[str] = pa.Field(coerce=False)
     title: Series[str] = pa.Field(coerce=False)
@@ -18,7 +17,6 @@ class SitemapTmpScrape(pa.DataFrameModel):
 
 class SitemapScrape(pa.DataFrameModel):
     source: Series[str] = pa.Field(coerce=False)
-
 
 
 class TodaysScrape(pa.DataFrameModel):
@@ -66,5 +64,6 @@ class InverseBiasOutput(pa.DataFrameModel):
     explanation: Series[str] = pa.Field(coerce=False)
     bias: Series[str] = pa.Field(coerce=False)
     inverse_bias: Series[str] = pa.Field(coerce=False)
-    negative: Series[int] = pa.Field(coerce=False)
     positive: Series[int] = pa.Field(coerce=False)
+    negative: Series[int] = pa.Field(coerce=False)
+    num_news: Series[int] = pa.Field(coerce=False)

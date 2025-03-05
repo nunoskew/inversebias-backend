@@ -22,7 +22,7 @@ from inversebias.data.df_schema import (
     SitemapScrape,
 )
 from inversebias.config import settings
-from inversebias.data.utils import  SUBJECTS
+from inversebias.data.utils import SUBJECTS
 
 # Load environment variables from .env file
 load_dotenv()
@@ -125,27 +125,29 @@ def process_sentiment(data: DataFrame[BiasInput], upload=False) -> DataFrame[Bia
     return data
 
 
-def get_bias_stats(df):
-    bias = (
-        df.loc[df.sentiment.isin(["positive", "negative"])]
+def get_bias_stats(bias):
+    bias_quantities = (
+        bias.loc[bias.sentiment.isin(["positive", "negative"])]
         .groupby(["source", "subject", "sentiment"])
         .size()
+        .rename("num_bias")
         .reset_index()
     )
-    bias = bias.pivot(
-        index=["source", "subject"], columns="sentiment", values=0
-    ).reset_index()
-    bias = bias.assign(positive=0) if "positive" not in bias.columns else bias
-    bias = bias.assign(negative=0) if "negative" not in bias.columns else bias
-    bias["num_news"] = bias["positive"] + bias["negative"]
-
-    return bias
+    bias_quantities_pivot = (
+        pd.pivot(bias_quantities, index=["source", "subject"], columns="sentiment")
+        .fillna(0)
+        .astype(int)
+    )
+    bias_quantities_pivot.columns = bias_quantities_pivot.columns.droplevel(0)
+    bias_quantities_pivot["num_news"] = (
+        bias_quantities_pivot["positive"] + bias_quantities_pivot["negative"]
+    )
+    return bias_quantities_pivot
 
 
 @upload_to_table(table_name="subject", primary_key="url")
 def filter_subjects_of_interest(
-    df: DataFrame[SitemapScrape],
-    **kwargs
+    df: DataFrame[SitemapScrape], **kwargs
 ) -> DataFrame[SentimentDataInput]:
     df_subjects = pd.DataFrame()
     for subject in SUBJECTS:
@@ -165,31 +167,30 @@ def build_inverse_bias(
     sentiment = pd.concat([sentiment, sentiment]).drop_duplicates(
         subset=["url"], keep="first"
     )
-    binary_df = sentiment.loc[sentiment.sentiment.isin(["positive", "negative"])]
-    df_bias = groupby_mode(binary_df, ["source", "subject"], "sentiment")
-    sentiment = sentiment.merge(
+    df_bias = groupby_mode(
+        sentiment.loc[sentiment.sentiment.isin(["positive", "negative"])],
+        ["source", "subject"],
+        "sentiment",
+    )
+    bias = sentiment.merge(
         df_bias.rename(columns={"sentiment": "bias"}),
         how="left",
         on=["source", "subject"],
     )
-    sentiment["inverse_bias"] = sentiment["bias"].map(
+    bias["inverse_bias"] = bias["bias"].map(
         {"positive": "negative", "negative": "positive", "N/A": "N/A"}
     )
-    df_bias = sentiment.loc[sentiment.sentiment == sentiment.inverse_bias]
-    df_bias = sentiment
-    bias = get_bias_stats(df_bias)
-    df_bias = sentiment.merge(
-        bias[["source", "subject", "negative", "positive"]],
-        how="left",
-        on=["source", "subject"],
+    bias = bias.dropna()
+    pivot = get_bias_stats(bias)
+    bias_quantity = bias.merge(
+        pivot, how="left", left_on=["source", "subject"], right_index=True
     )
-    df_bias = df_bias.dropna(subset=["positive", "negative"])
-    df_bias = df_bias.assign(negative=df_bias.negative.astype(pd.Int64Dtype()))
-    df_bias = df_bias.assign(positive=df_bias.positive.astype(pd.Int64Dtype()))
-    df_bias = df_bias.drop_duplicates(subset=["url"], keep="first")
+    bias_quantity = bias_quantity.loc[
+        bias_quantity.sentiment == bias_quantity.inverse_bias
+    ]
     if upload:
-        sql_replace_df(df=df_bias, primary_key="url", table_name="inverse_bias")
-    return df_bias
+        sql_replace_df(df=bias_quantity, primary_key="url", table_name="inverse_bias")
+    return bias_quantity
 
 
 def extract_judgement_from_text(text, subject, online=False):
