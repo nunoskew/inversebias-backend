@@ -1,5 +1,7 @@
 import functools
 import pandas as pd
+import os
+import time
 from inversebias.data.utils import create_dtype
 from sqlalchemy import inspect, text
 from sqlalchemy import create_engine
@@ -11,19 +13,46 @@ from inversebias.config import settings
 class InverseBiasEngine:
     _instance = None
     _engine = None
+    _last_modified = 0
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(InverseBiasEngine, cls).__new__(cls)
-            cls._engine = create_engine(
-                settings.database.uri,
-                echo=settings.database.echo,
-                pool_size=settings.database.pool_size,
-            )
+            cls._create_engine()
         return cls._instance
+
+    @classmethod
+    def _create_engine(cls):
+        # Extract the file path from the URI
+        db_path = settings.database.uri.replace("sqlite:///", "")
+        # Update the last modified time
+        try:
+            cls._last_modified = os.path.getmtime(db_path)
+        except OSError:
+            cls._last_modified = 0
+
+        # Create the engine
+        cls._engine = create_engine(
+            settings.database.uri,
+            echo=settings.database.echo,
+            pool_size=settings.database.pool_size,
+            # These options help with database file changes
+            connect_args={"check_same_thread": False},
+        )
 
     @property
     def engine(self) -> Engine:
+        # Check if the database file has been modified
+        db_path = settings.database.uri.replace("sqlite:///", "")
+        try:
+            current_mtime = os.path.getmtime(db_path)
+            if current_mtime > self._last_modified:
+                # Database file has changed, recreate the engine
+                self._engine.dispose()
+                self.__class__._create_engine()
+        except OSError:
+            # File doesn't exist yet, will be created on first access
+            pass
         return self._engine
 
 
@@ -57,7 +86,7 @@ def upload_to_table(primary_key="url", table_name=None, verbose=False, upload=Tr
         def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
             if kwargs.get("upload", False):
-                actual_table_name = table_name 
+                actual_table_name = table_name
                 table_upload(
                     df=result,
                     primary_key=primary_key,

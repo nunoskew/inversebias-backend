@@ -35,7 +35,7 @@ subjects:
 
 # Analysis settings
 analysis:
-  bias_threshold: 0.667
+  bias_threshold: 0.75
   sentiment_categories:
     - positive
     - neutral
