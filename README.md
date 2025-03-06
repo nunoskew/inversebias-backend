@@ -1,6 +1,8 @@
-# InverseBias Backend
+# [inversebias](https://inversebias.com)
 
-InverseBias is a tool designed to identify and analyze media bias in news articles. It scrapes news sources, analyzes the sentiment of the content, and determines if there's an "inverse bias" - where the sentiment of an article contradicts the known political leaning of its source.
+
+
+inversebias scrapes news sources, analyzes the sentiment of the headlines, and determines if there's an "inverse bias" - where the sentiment of an article contradicts the known political leaning of its source.
 
 ## Features
 
