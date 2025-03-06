@@ -134,3 +134,7 @@ def list_objects(prefix=None, max_keys=1000):
         ]
 
     return objects
+
+
+if __name__ == "__main__":
+    upload_db()

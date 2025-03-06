@@ -5,15 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from inversebias.data.db import InverseBiasEngine
 from inversebias.config import settings
+from contextlib import asynccontextmanager
 
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.api.frontend_url],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from inversebias.data.storage import download_db
 
 
 class NewsArticle(BaseModel):
@@ -28,6 +22,21 @@ class NewsArticle(BaseModel):
     num_positive: int
     bias: str
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    download_db()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.api.frontend_url],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/articles", response_model=List[NewsArticle])
 def get_articles(
