@@ -51,7 +51,7 @@ class ApiSettings(BaseSettings):
         os.getenv("PORT", str(_yaml_config.get("api", {}).get("port", 8080)))
     )
     frontend_url: str = _yaml_config.get("api", {}).get(
-        "frontend_url", "http://localhost:3000"
+        "frontend_url", "https://inversebias.com"
     )
     default_limit: int = _yaml_config.get("api", {}).get("default_limit", 10)
     max_limit: int = _yaml_config.get("api", {}).get("max_limit", 100)

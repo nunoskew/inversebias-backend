@@ -29,3 +29,5 @@ venv/
 *.txt
 *.db
 !inverse_bias.db
+htmlcov
+.pytest_cache
