@@ -14,7 +14,7 @@ COPY . /app
 VOLUME /mnt/inversebias_data
 
 # Create crontab file
-RUN echo "0 */4 * * * cd /app && /usr/local/bin/poetry run python -m inversebias.pipeline >> /var/log/cron.log 2>&1" > /etc/cron.d/inversebias-cron && \
+RUN echo "0 */4 * * * cd /app && /usr/local/bin/poetry run python -m inversebias.pipeline && /usr/local/bin/poetry run python -m inversebias.data.storage --upload && /usr/local/bin/poetry run python -m inversebias.data.storage --download >> /var/log/cron.log 2>&1" > /etc/cron.d/inversebias-cron && \
     chmod 0644 /etc/cron.d/inversebias-cron && \
     crontab /etc/cron.d/inversebias-cron && \
     touch /var/log/cron.log

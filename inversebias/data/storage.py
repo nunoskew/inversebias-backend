@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 import boto3
 from dotenv import load_dotenv
+import argparse
 
 # Load environment variables
 load_dotenv()
@@ -137,4 +138,22 @@ def list_objects(prefix=None, max_keys=1000):
 
 
 if __name__ == "__main__":
-    upload_db()
+    parser = argparse.ArgumentParser(description="Database storage operations")
+    parser.add_argument(
+        "--download", action="store_true", help="Download the database from S3"
+    )
+    parser.add_argument(
+        "--upload", action="store_true", help="Upload the database to S3"
+    )
+    args = parser.parse_args()
+
+    if args.download:
+        download_db()
+        print("Database downloaded successfully")
+    elif args.upload:
+        upload_db()
+        print("Database uploaded successfully")
+    else:
+        # Default behavior if no flags specified
+        print("No action specified. Use --download or --upload.")
+        parser.print_help()
