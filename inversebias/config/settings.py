@@ -34,11 +34,35 @@ _yaml_config = load_yaml_config()
 
 
 class DatabaseSettings(BaseSettings):
-    uri: str = _yaml_config.get("database", {}).get("uri", "sqlite:///inverse_bias.db")
+    environment: str = _yaml_config.get("database", {}).get(
+        "environment", "development"
+    )
+    uri: str = "sqlite:///./data/inverse_bias.db"  # Default value to pass validation
     pool_size: int = _yaml_config.get("database", {}).get("pool_size", 5)
     echo: bool = _yaml_config.get("database", {}).get("echo", False)
 
     model_config = ConfigDict(env_prefix="DB_", extra="ignore")
+
+    def __init__(self, **data):
+        # Get the environment-specific URI before initializing parent
+        env_config = _yaml_config.get("database", {}).get("environments", {})
+        current_env = os.getenv(
+            "INVERSEBIAS_ENV",
+            _yaml_config.get("database", {}).get("environment", "development"),
+        )
+
+        # Default to development if the specified environment doesn't exist
+        if current_env not in env_config:
+            current_env = "development"
+
+        # Set the URI in the data dictionary for Pydantic validation
+        env_uri = env_config.get(current_env, {}).get(
+            "uri", "sqlite:///./data/inverse_bias.db"
+        )
+        data["uri"] = env_uri
+        data["environment"] = current_env
+
+        super().__init__(**data)
 
 
 # Store news sources directly as a dictionary

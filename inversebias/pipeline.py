@@ -1,3 +1,5 @@
+from inversebias.data.db import ensure_volume_dirs
+from inversebias.data.storage import download_db
 from inversebias.ml import (
     build_inverse_bias,
     filter_subjects_of_interest,
@@ -17,4 +19,5 @@ def today_pipeline(upload=True, verbose=False):
 if __name__ == "__main__":
     upload = True
     verbose = True
+    ensure_volume_dirs()
     today_pipeline(upload=upload, verbose=verbose)

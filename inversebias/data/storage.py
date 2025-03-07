@@ -7,6 +7,9 @@ import boto3
 from dotenv import load_dotenv
 import argparse
 
+from inversebias.config import settings
+from inversebias.data.db import ensure_volume_dirs
+
 # Load environment variables
 load_dotenv()
 
@@ -18,21 +21,54 @@ S3_CONFIG = {
     "region_name": os.getenv("AWS_REGION", "auto"),
 }
 BUCKET_NAME = os.getenv("BUCKET_NAME")
-DB_FILENAME = "inverse_bias.db"
+
+
+def get_db_path():
+    """Get the appropriate database file path based on environment.
+
+    Returns:
+        Path: Path object pointing to the database file
+    """
+    # Extract the file path from the URI
+    db_uri = settings.database.uri
+    db_path = db_uri.replace("sqlite:///", "")
+
+    # For relative paths in development mode, handle properly
+    if db_path.startswith("./"):
+        # Convert relative path to absolute path
+        data_dir = ensure_volume_dirs()
+        db_name = os.path.basename(db_path.replace("./data/", ""))
+        db_path = str(data_dir / db_name)
+    elif not db_path.startswith("/"):
+        # Handle relative paths that don't start with ./
+        data_dir = ensure_volume_dirs()
+        db_name = os.path.basename(db_path)
+        db_path = str(data_dir / db_name)
+
+    # Ensure parent directory exists
+    os.makedirs(os.path.dirname(Path(db_path)), exist_ok=True)
+
+    return Path(db_path)
+
+
+DB_FILENAME = get_db_path()
 
 
 def download_db(local_path=None, use_latest=True, key=None):
     """Download the database file from S3.
 
     Args:
-        local_path: Optional path to save the file. Defaults to project root.
+        local_path: Optional path to save the file. Defaults to environment-specific path.
         use_latest: If True, downloads the latest versioned file instead of the main file.
         key: Optional specific key to download. Overrides use_latest if provided.
 
     Returns:
         Path: The path to the downloaded file
     """
-    local_path = local_path or Path(DB_FILENAME)
+    local_path = local_path or DB_FILENAME
+
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
     # Create S3 client
     s3 = boto3.client("s3", **S3_CONFIG)
@@ -42,7 +78,7 @@ def download_db(local_path=None, use_latest=True, key=None):
     if not download_key:
         if use_latest:
             # Find the latest versioned file
-            base_name = DB_FILENAME.split(".")[0]
+            base_name = os.path.basename(DB_FILENAME).split(".")[0]
             prefix = f"{base_name}_"
             objects = list_objects(prefix=prefix)
 
@@ -55,9 +91,9 @@ def download_db(local_path=None, use_latest=True, key=None):
 
             else:
                 # No versioned files found, fall back to main file
-                download_key = DB_FILENAME
+                download_key = os.path.basename(DB_FILENAME)
         else:
-            download_key = DB_FILENAME
+            download_key = os.path.basename(DB_FILENAME)
     print(f"Downloading {download_key}")
     # Download file
     s3.download_file(Bucket=BUCKET_NAME, Key=download_key, Filename=str(local_path))
@@ -69,28 +105,30 @@ def upload_db(local_path=None, versioned=True):
     """Upload the database file to S3.
 
     Args:
-        local_path: Optional path to the file. Defaults to project root.
+        local_path: Optional path to the file. Defaults to environment-specific path.
         versioned: If True, creates a versioned copy alongside the main file.
 
     Returns:
         dict: Upload result with key and version info
     """
-    local_path = local_path or Path(DB_FILENAME)
+    local_path = local_path or DB_FILENAME
 
     # Ensure file exists
     if not local_path.exists():
         raise FileNotFoundError(f"Database file not found at {local_path}")
 
     s3 = boto3.client("s3", **S3_CONFIG)
-    result = {"key": DB_FILENAME}
+    db_filename = os.path.basename(DB_FILENAME)
+    result = {"key": db_filename}
 
     # Upload main file
-    s3.upload_file(Filename=str(local_path), Bucket=BUCKET_NAME, Key=DB_FILENAME)
+    s3.upload_file(Filename=str(local_path), Bucket=BUCKET_NAME, Key=db_filename)
 
     # Create versioned copy if requested
     if versioned:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        versioned_key = f"{DB_FILENAME.split('.')[0]}_{timestamp}.db"
+        base_name = os.path.basename(DB_FILENAME).split(".")[0]
+        versioned_key = f"{base_name}_{timestamp}.db"
         s3.upload_file(Filename=str(local_path), Bucket=BUCKET_NAME, Key=versioned_key)
         result["versioned_key"] = versioned_key
 

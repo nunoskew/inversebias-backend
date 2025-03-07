@@ -1,4 +1,5 @@
 import functools
+from pathlib import Path
 import pandas as pd
 import os
 import time
@@ -8,6 +9,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine
 from sqlite3 import connect
 from inversebias.config import settings
+
+
+# Ensure volume directory exists
+def ensure_volume_dirs():
+    if settings.database.environment == "production":
+        # Production environment uses /mnt path
+        volume_path = Path("/mnt/inversebias_data")
+    else:
+        # Development environment uses local path
+        # Create the data directory relative to the current working directory
+        volume_path = Path("./data").absolute()
+
+    volume_path.mkdir(parents=True, exist_ok=True)
+    return volume_path
 
 
 class InverseBiasEngine:
@@ -23,8 +38,24 @@ class InverseBiasEngine:
 
     @classmethod
     def _create_engine(cls):
+        # Ensure the data directory exists
+        ensure_volume_dirs()
+
         # Extract the file path from the URI
-        db_path = settings.database.uri.replace("sqlite:///", "")
+        db_uri = settings.database.uri
+        db_path = db_uri.replace("sqlite:///", "")
+
+        # For relative paths in development mode, handle properly
+        if db_path.startswith("./"):
+            # Convert relative path to absolute path
+            db_path = os.path.abspath(db_path)
+            # Ensure parent directory exists
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        elif not db_path.startswith("/"):
+            # Handle relative paths that don't start with ./
+            db_path = os.path.abspath(db_path)
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
         # Update the last modified time
         try:
             cls._last_modified = os.path.getmtime(db_path)
@@ -43,7 +74,17 @@ class InverseBiasEngine:
     @property
     def engine(self) -> Engine:
         # Check if the database file has been modified
-        db_path = settings.database.uri.replace("sqlite:///", "")
+        db_uri = settings.database.uri
+        db_path = db_uri.replace("sqlite:///", "")
+
+        # For relative paths in development mode, handle properly
+        if db_path.startswith("./"):
+            # Convert relative path to absolute path
+            db_path = os.path.abspath(db_path)
+        elif not db_path.startswith("/"):
+            # Handle relative paths that don't start with ./
+            db_path = os.path.abspath(db_path)
+
         try:
             current_mtime = os.path.getmtime(db_path)
             if current_mtime > self._last_modified:

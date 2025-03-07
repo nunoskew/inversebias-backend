@@ -1,6 +1,11 @@
 # Database settings
 database:
-  uri: sqlite:///inverse_bias.db
+  environments:
+    development:
+      uri: sqlite:///./data/inverse_bias.db
+    production:
+      uri: sqlite:////mnt/inversebias_data/inverse_bias.db
+  environment: development # Set to "development" or "production"
   pool_size: 5
   echo: false
 

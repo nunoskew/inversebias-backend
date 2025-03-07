@@ -11,3 +11,4 @@ htmlcov
 .pytest_cache
 poetry.lock
 fly.toml
+data/
