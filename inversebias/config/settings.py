@@ -52,6 +52,12 @@ class DatabaseSettings(BaseSettings):
             database_url = os.getenv("DATABASE_URL")
 
             if database_url:
+                # Fix common postgres:// vs postgresql:// issue
+                if database_url.startswith("postgres://"):
+                    database_url = database_url.replace(
+                        "postgres://", "postgresql://", 1
+                    )
+
                 # Use the provided DATABASE_URL
                 data["uri"] = database_url
             else:
@@ -71,9 +77,15 @@ class DatabaseSettings(BaseSettings):
                 data["uri"] = env_uri
         else:
             # For development and other environments, use the URI from config.yaml
-            data["uri"] = _yaml_config.get("database", {}).get(
+            uri = _yaml_config.get("database", {}).get(
                 "uri", "postgresql://localhost/inversebias"
             )
+
+            # Ensure it uses postgresql:// not postgres://
+            if uri.startswith("postgres://"):
+                uri = uri.replace("postgres://", "postgresql://", 1)
+
+            data["uri"] = uri
 
         data["environment"] = current_env
         super().__init__(**data)

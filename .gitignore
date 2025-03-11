@@ -12,3 +12,4 @@ htmlcov
 poetry.lock
 fly.toml
 data/
+crontab

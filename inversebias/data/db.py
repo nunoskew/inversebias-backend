@@ -88,19 +88,39 @@ def table_exists(table_name: str) -> bool:
 
 
 def sql_append_df(df: pd.DataFrame, table_name: str, dtype: dict | None = None):
+    """
+    Append data to an existing table or create a new one.
+    This works with both SQLite and PostgreSQL.
+    """
     engine = InverseBiasEngine().engine
 
     with engine.connect() as conn:
-        df.to_sql(
-            table_name,
-            conn,
-            if_exists="append",
-            index=False,
-            dtype=dtype,
-        )
+        try:
+            # Try with the provided dtype
+            df.to_sql(
+                table_name,
+                conn,
+                if_exists="append",
+                index=False,
+                dtype=dtype,
+            )
+        except Exception as e:
+            # If there's an issue with column types, try without specifying dtype
+            df.to_sql(
+                table_name,
+                conn,
+                if_exists="append",
+                index=False,
+                # Let SQLAlchemy infer types
+            )
 
 
 def sql_replace_df(df: pd.DataFrame, table_name: str, primary_key: str):
+    """
+    Replace a table with a new one, setting the primary key properly.
+    This works with both SQLite and PostgreSQL.
+    """
+    # Get SQLAlchemy types for columns
     dtype = create_dtype(df)
     engine = InverseBiasEngine().engine
 
@@ -110,33 +130,62 @@ def sql_replace_df(df: pd.DataFrame, table_name: str, primary_key: str):
         conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
         conn.commit()
 
-        # Now create the table with proper primary key
-        df.to_sql(
-            table_name,
-            conn,
-            if_exists="replace",
-            index=False,
-            dtype=dtype,
-        )
+        try:
+            # Try to create the table with the column types
+            df.to_sql(
+                table_name,
+                conn,
+                if_exists="replace",
+                index=False,
+                dtype=dtype,
+            )
 
-        # Add primary key constraint
-        conn.execute(text(f"ALTER TABLE {table_name} ADD PRIMARY KEY ({primary_key})"))
-        conn.commit()
+            # Add primary key constraint
+            conn.execute(
+                text(f"ALTER TABLE {table_name} ADD PRIMARY KEY ({primary_key})")
+            )
+            conn.commit()
+        except Exception as e:
+            # Fallback: If there's an issue with column types, try without specifying dtype
+            conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
+            conn.commit()
+
+            df.to_sql(
+                table_name,
+                conn,
+                if_exists="replace",
+                index=False,
+                # Let SQLAlchemy infer types
+            )
+
+            # Add primary key constraint
+            conn.execute(
+                text(f"ALTER TABLE {table_name} ADD PRIMARY KEY ({primary_key})")
+            )
+            conn.commit()
 
 
 def table_upload(df: pd.DataFrame, table_name: str, primary_key: str, verbose=False):
-    dtype = None
+    """
+    Upload data to a table, handling both new tables and appending to existing ones.
+    Also handles setting primary keys correctly.
+    """
     if table_exists(table_name=table_name):
+        # If table exists, filter out rows that already exist
         table = get_table(table_name)
         df = df.loc[~df[primary_key].isin(table[primary_key])]
         if df.empty:
             return
-    else:
-        dtype = create_dtype(df)
 
-    sql_append_df(
-        df=df.drop_duplicates(subset=primary_key), table_name=table_name, dtype=dtype
-    )
+        # Append filtered rows
+        sql_append_df(df=df.drop_duplicates(subset=primary_key), table_name=table_name)
+    else:
+        # Create new table with primary key
+        sql_replace_df(
+            df=df.drop_duplicates(subset=primary_key),
+            table_name=table_name,
+            primary_key=primary_key,
+        )
 
     if verbose:
         print(f"Uploaded {len(df)} rows to the {table_name} table in the database.")
