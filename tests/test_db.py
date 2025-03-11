@@ -28,8 +28,8 @@ def test_inverse_bias_engine_singleton(mock_sqlalchemy_engine):
 
     # Verify create_engine was called only once
     mock_sqlalchemy_engine.assert_called_once()
-    # Check that first parameter contains sqlite
-    assert "sqlite:///inverse_bias.db" in mock_sqlalchemy_engine.call_args[0][0]
+    # Check that first parameter is a postgresql connection string
+    assert "postgresql://" in mock_sqlalchemy_engine.call_args[0][0]
 
 
 @pytest.fixture
