@@ -1,12 +1,7 @@
 # Database settings
 database:
-  environments:
-    development:
-      uri: sqlite:///./data/inverse_bias.db
-    production:
-      uri: sqlite:////mnt/inversebias_data/inverse_bias.db
-  environment: development # Set to "development" or "production"
-  pool_size: 5
+  uri: postgresql://localhost/inversebias
+  pool_size: 20
   echo: false
 
 # News sources - each will be automatically available in the application

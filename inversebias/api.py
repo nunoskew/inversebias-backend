@@ -1,15 +1,10 @@
-from pathlib import Path
 from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from inversebias.data.db import InverseBiasEngine, ensure_volume_dirs
+from inversebias.data.db import InverseBiasEngine
 from inversebias.config import settings
-from contextlib import asynccontextmanager
-
-from inversebias.data.storage import download_db
-
 
 class NewsArticle(BaseModel):
     source: str
@@ -24,15 +19,7 @@ class NewsArticle(BaseModel):
     bias: str
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    ensure_volume_dirs()
-    
-    download_db()
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.api.frontend_url],

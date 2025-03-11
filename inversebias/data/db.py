@@ -7,22 +7,7 @@ from inversebias.data.utils import create_dtype
 from sqlalchemy import inspect, text
 from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine
-from sqlite3 import connect
 from inversebias.config import settings
-
-
-# Ensure volume directory exists
-def ensure_volume_dirs():
-    if settings.database.environment == "production":
-        # Production environment uses /mnt path
-        volume_path = Path("/mnt/inversebias_data")
-    else:
-        # Development environment uses local path
-        # Create the data directory relative to the current working directory
-        volume_path = Path("./data").absolute()
-
-    volume_path.mkdir(parents=True, exist_ok=True)
-    return volume_path
 
 
 class InverseBiasEngine:
@@ -38,62 +23,18 @@ class InverseBiasEngine:
 
     @classmethod
     def _create_engine(cls):
-        # Ensure the data directory exists
-        ensure_volume_dirs()
 
-        # Extract the file path from the URI
-        db_uri = settings.database.uri
-        db_path = db_uri.replace("sqlite:///", "")
-
-        # For relative paths in development mode, handle properly
-        if db_path.startswith("./"):
-            # Convert relative path to absolute path
-            db_path = os.path.abspath(db_path)
-            # Ensure parent directory exists
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        elif not db_path.startswith("/"):
-            # Handle relative paths that don't start with ./
-            db_path = os.path.abspath(db_path)
-            os.makedirs(os.path.dirname(db_path), exist_ok=True)
-
-        # Update the last modified time
-        try:
-            cls._last_modified = os.path.getmtime(db_path)
-        except OSError:
-            cls._last_modified = 0
-
-        # Create the engine
+        # Create the engine with PostgreSQL connection
         cls._engine = create_engine(
             settings.database.uri,
             echo=settings.database.echo,
             pool_size=settings.database.pool_size,
-            # These options help with database file changes
-            connect_args={"check_same_thread": False},
+            pool_pre_ping=True,  # Verify connections before using them
         )
 
     @property
     def engine(self) -> Engine:
-        # Check if the database file has been modified
-        db_uri = settings.database.uri
-        db_path = db_uri.replace("sqlite:///", "")
-
-        # For relative paths in development mode, handle properly
-        if db_path.startswith("./"):
-            # Convert relative path to absolute path
-            db_path = os.path.abspath(db_path)
-        elif not db_path.startswith("/"):
-            # Handle relative paths that don't start with ./
-            db_path = os.path.abspath(db_path)
-
-        try:
-            current_mtime = os.path.getmtime(db_path)
-            if current_mtime > self._last_modified:
-                # Database file has changed, recreate the engine
-                self._engine.dispose()
-                self.__class__._create_engine()
-        except OSError:
-            # File doesn't exist yet, will be created on first access
-            pass
+        # No need to check for file modification with PostgreSQL
         return self._engine
 
 
@@ -147,10 +88,9 @@ def table_exists(table_name: str) -> bool:
 
 
 def sql_append_df(df: pd.DataFrame, table_name: str, dtype: dict | None = None):
-    # Extract just the filename from the database URI
-    db_path = settings.database.uri.replace("sqlite:///", "")
+    engine = InverseBiasEngine().engine
 
-    with connect(db_path) as conn:
+    with engine.connect() as conn:
         df.to_sql(
             table_name,
             conn,
@@ -162,12 +102,15 @@ def sql_append_df(df: pd.DataFrame, table_name: str, dtype: dict | None = None):
 
 def sql_replace_df(df: pd.DataFrame, table_name: str, primary_key: str):
     dtype = create_dtype(df)
-    dtype[primary_key] += " PRIMARY KEY"
+    engine = InverseBiasEngine().engine
 
-    # Extract just the filename from the database URI
-    db_path = settings.database.uri.replace("sqlite:///", "")
+    with engine.connect() as conn:
+        # For PostgreSQL, we need to handle the primary key differently
+        # Drop the table if it exists and create a new one
+        conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
+        conn.commit()
 
-    with connect(db_path) as conn:
+        # Now create the table with proper primary key
         df.to_sql(
             table_name,
             conn,
@@ -175,6 +118,10 @@ def sql_replace_df(df: pd.DataFrame, table_name: str, primary_key: str):
             index=False,
             dtype=dtype,
         )
+
+        # Add primary key constraint
+        conn.execute(text(f"ALTER TABLE {table_name} ADD PRIMARY KEY ({primary_key})"))
+        conn.commit()
 
 
 def table_upload(df: pd.DataFrame, table_name: str, primary_key: str, verbose=False):
@@ -186,9 +133,10 @@ def table_upload(df: pd.DataFrame, table_name: str, primary_key: str, verbose=Fa
             return
     else:
         dtype = create_dtype(df)
-        dtype[primary_key] += " PRIMARY KEY"
+
     sql_append_df(
         df=df.drop_duplicates(subset=primary_key), table_name=table_name, dtype=dtype
     )
+
     if verbose:
         print(f"Uploaded {len(df)} rows to the {table_name} table in the database.")

@@ -34,34 +34,48 @@ _yaml_config = load_yaml_config()
 
 
 class DatabaseSettings(BaseSettings):
-    environment: str = _yaml_config.get("database", {}).get(
-        "environment", "development"
-    )
-    uri: str = "sqlite:///./data/inverse_bias.db"  # Default value to pass validation
-    pool_size: int = _yaml_config.get("database", {}).get("pool_size", 5)
+    environment: str = os.getenv("INVERSEBIAS_ENV", "development")
+    uri: str = _yaml_config.get("database", {}).get(
+        "uri", "postgresql://localhost/inversebias"
+    )  # Default value from config
+    pool_size: int = _yaml_config.get("database", {}).get("pool_size", 20)
     echo: bool = _yaml_config.get("database", {}).get("echo", False)
 
     model_config = ConfigDict(env_prefix="DB_", extra="ignore")
 
     def __init__(self, **data):
-        # Get the environment-specific URI before initializing parent
-        env_config = _yaml_config.get("database", {}).get("environments", {})
-        current_env = os.getenv(
-            "INVERSEBIAS_ENV",
-            _yaml_config.get("database", {}).get("environment", "development"),
-        )
+        # Get the environment from env var, default to development if not set
+        current_env = os.getenv("INVERSEBIAS_ENV", "development")
 
-        # Default to development if the specified environment doesn't exist
-        if current_env not in env_config:
-            current_env = "development"
+        if current_env == "production":
+            # For production, use DATABASE_URL environment variable directly
+            database_url = os.getenv("DATABASE_URL")
 
-        # Set the URI in the data dictionary for Pydantic validation
-        env_uri = env_config.get(current_env, {}).get(
-            "uri", "sqlite:///./data/inverse_bias.db"
-        )
-        data["uri"] = env_uri
+            if database_url:
+                # Use the provided DATABASE_URL
+                data["uri"] = database_url
+            else:
+                # Fallback: Construct from individual variables if DATABASE_URL is not set
+                postgres_user = os.getenv("POSTGRES_USER", "postgres")
+                postgres_password = os.getenv("POSTGRES_PASSWORD", "")
+                postgres_host = os.getenv("POSTGRES_HOST", "localhost")
+                postgres_port = os.getenv("POSTGRES_PORT", "5432")
+                postgres_db = os.getenv("POSTGRES_DB", "inversebias")
+
+                # Construct the database URI
+                env_uri = f"postgresql://{postgres_user}"
+                if postgres_password:
+                    env_uri += f":{postgres_password}"
+                env_uri += f"@{postgres_host}:{postgres_port}/{postgres_db}"
+
+                data["uri"] = env_uri
+        else:
+            # For development and other environments, use the URI from config.yaml
+            data["uri"] = _yaml_config.get("database", {}).get(
+                "uri", "postgresql://localhost/inversebias"
+            )
+
         data["environment"] = current_env
-
         super().__init__(**data)
 
 
