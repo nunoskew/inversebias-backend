@@ -1,10 +1,8 @@
-# Database settings
 database:
   uri: postgresql://localhost/inversebias
   pool_size: 20
   echo: false
 
-# News sources - each will be automatically available in the application
 news_sources:
   cnn:
     url: https://www.cnn.com
@@ -22,7 +20,6 @@ news_sources:
     url: https://www.apnews.com
     sitemap_url: https://www.apnews.com/news-sitemap-content.xml
 
-# Subjects to track - each will be automatically used in the application
 subjects:
   - trump
   - biden
@@ -30,10 +27,8 @@ subjects:
   - elon musk
   - putin
   - zelensky
-  # Add new subjects here:
-  # - mark zuckerberg
 
-# Analysis settings
+
 analysis:
   bias_threshold: 0.75
   sentiment_categories:
@@ -42,7 +37,6 @@ analysis:
     - negative
   llm_model: ollama/llama2
 
-# API settings
 api:
   host: 0.0.0.0
   port: 8080
